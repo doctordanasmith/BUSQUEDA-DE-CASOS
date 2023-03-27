@@ -117,35 +117,47 @@ DNI_codificados_Canreg <- read_excel("2022 - 09 - 16 DNI codificados.xlsx") %>%
   rename(Codigo = `Hash MD5`)
 
 
-BASE_CANREG <- read_csv(".csv") 
+BASE_CANREG <- read_csv("2023 - 03 - 23.csv") 
 
 
 write_excel_csv2(POSITIVOS, "POSITIVOS_colon_resto2022.csv")
 
+## agrego códigos
 
 POSITIVOS_con_codigos <- read_excel("POSITIVOS_colon_resto2022.xlsx") %>% 
-  rename(`No Documento` = `No Documento`)
+  mutate(`No Documento` = as.character(`No Documento`))
 
-DUPLICADOS_POMARCANREG_resto2022_porDNI <- POSITIVOS_con_codigos %>%  
+DUPLICADOS_colon_resto2022_porDNI <- POSITIVOS_con_codigos %>%  
   semi_join(BASE_CANREG, by= "No Documento" ) 
 
-DUPLICADOS_POMARCANREG_resto2022_porcodigo <- POSITIVOS_con_codigos %>%  
+DUPLICADOS_colon_resto2022_porcodigo <- POSITIVOS_con_codigos %>%  
   semi_join(DNI_codificados_Canreg, by= "Codigo") 
 
-DUPLICADOS_2022 <- DUPLICADOS_POMARCANREG_2022_porDNI %>% 
-  bind_rows(DUPLICADOS_POMARCANREG_2022_porcodigo) %>% 
+DUPLICADOS_colon_resto2022_porcodigo_2 <- POSITIVOS_con_codigos %>%  
+  semi_join(BASE_CANREG, by= "Codigo") 
+
+write_excel_csv2(DUPLICADOS_colon_resto2022_porcodigo_2, 
+                 "DUPLICADOS_colon_resto2022_porcodigo_2.csv")
+
+DUPLICADOS <- DUPLICADOS_colon_resto2022_porDNI %>% 
+  bind_rows(DUPLICADOS_colon_resto2022_porcodigo,
+            DUPLICADOS_colon_resto2022_porcodigo_2) %>% 
+  arrange(`No Documento`) %>% 
   mutate(ID = row_number())
 
 
-write_excel_csv2(DUPLICADOS_resto2022, "DUPLICADOS_colon_resto2022.csv")  
+write_excel_csv2(DUPLICADOS, "DUPLICADOS_colon_resto2022.csv")  
 
 
 UNICOS_colon_resto2022 <- POSITIVOS_con_codigos %>%  
-  anti_join(DUPLICADOS_2022, by= "No Documento") %>% 
+  anti_join(DUPLICADOS, by= "No Documento") %>% 
+  anti_join(DUPLICADOS, by= "Codigo") %>% 
   arrange(Codigo) %>% 
   mutate(ID = row_number()) %>% 
   select(Codigo,fecha_nac, `FECHA RECEP`, edad,sexo, topografias, DIAGNOSTICO, datos_clinicos,
          domicilio, LOCALIDAD,  AÑO, `No Documento`,
          ID)
 
-write_excel_csv2(UNICOS_2022, "UNICOS_colon_resto2022.csv")
+write_excel_csv2(UNICOS_colon_resto2022, "UNICOS_colon_resto2022.csv")
+
+
