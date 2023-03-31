@@ -1,7 +1,7 @@
 library(tidyverse)
 library(readxl)
 library(lubridate)
-library(janitor)
+library(janitor) 
 
 ##janitor::convert_to_date() por si quiero ir de el código para atrás a la fecha
 
