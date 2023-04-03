@@ -2,7 +2,7 @@ library(tidyverse)
 library(readxl)
 library(lubridate)
 library(janitor) 
-
+ 
 ##janitor::convert_to_date() por si quiero ir de el código para atrás a la fecha
 
 Base <- read_excel("2018 - 2022 DESIMONE.xlsx")  
