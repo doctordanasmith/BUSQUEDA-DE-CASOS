@@ -5,8 +5,6 @@ library(lubridate)
 
 library(readxl)
 
-
-
 Internacion_resto_2022 <- read_excel("internaciones a partir de Sept 2022 25 de Mayo.xlsx")%>% 
   mutate(`FECHA RECEP` = dmy_hm(`Fecha/hora ingreso`  ), 
          `FECHA RECEP`= as.Date(`FECHA RECEP`),
@@ -145,7 +143,7 @@ POSITIVOS <- Internacion_resto_2022 %>%
 DNI_y_DNI_codificados_Canreg <- read_excel("2022 - 09 - 16 codigos.xlsx") %>% 
   rename(Codigo = `Hash MD5`)
 
-Base_CANREG<- read_csv(".csv")
+Base_CANREG<- read_csv("2023 - 03 - 31.csv")
 
 INTERNACIONES_resto_2022_DUPLICADOS_CON_DNI_DE_Base_CANREG <- POSITIVOS %>%  
   semi_join(DNI_y_DNI_codificados_Canreg, by = "Codigo" ) 
@@ -166,12 +164,32 @@ write_excel_csv2(INTERNACIONES_resto_2022_DUPLICADOS,
                  "INTERNACIONES_resto_2022_DUPLICADOS.csv" )
 
 INTERNACIONES_resto_2022_UNICOS <- POSITIVOS %>%  
-  anti_join(INTERNACIONES_resto_2022_DUPLICADOS, by = "Codigo" ) %>% 
+  anti_join(INTERNACIONES_resto_2022_DUPLICADOS, by = "Codigo" ) 
+
+
+CLAVE_DUPLICADOS <- INTERNACIONES_resto_2022_UNICOS %>% 
+  count(Codigo, sort = T) %>% 
+  filter(n > 1) 
+
+UNICOS_resto2022_dentrodemismabase <- INTERNACIONES_resto_2022_UNICOS %>% 
+   semi_join(CLAVE_DUPLICADOS)%>% 
   arrange(Codigo) %>% 
   mutate(ID = row_number())
 
-write_excel_csv2(INTERNACIONES_resto_2022_UNICOS, 
-                 "INTERNACIONES_resto_2022_UNICOS.csv")  
+write_excel_csv2(UNICOS_resto2022_dentrodemismabase, 
+                 "UNICOS_resto2022_DUPLICADOSdentrodemismabase.csv")
+  
+CLAVE_NODUPLICADOS <- INTERNACIONES_resto_2022_UNICOS %>% 
+  count(Codigo, sort = T) %>% 
+  filter(n == 1)  
+
+UNICOS_resto2022_solounavezenUNICOS <- INTERNACIONES_resto_2022_UNICOS %>% 
+  semi_join(CLAVE_NODUPLICADOS)%>% 
+  arrange(Codigo) %>% 
+  mutate(ID = row_number())
+
+write_excel_csv2(UNICOS_resto2022_solounavezenUNICOS, 
+                 "UNICOS_resto2022_solounavezenUNICOS.csv")  
 
 
 
