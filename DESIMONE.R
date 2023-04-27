@@ -1,11 +1,16 @@
 library(tidyverse)
 library(readxl)
 library(lubridate)
-library(janitor) 
- 
+library(janitor)
+
+
 ##janitor::convert_to_date() por si quiero ir de el código para atrás a la fecha
 
-Base <- read_excel("2018 - 2022 DESIMONE.xlsx")  
+Base <- read_excel("2018 - 2022 DESIMONE.xlsx")  %>% 
+  mutate(BIOPSIA = case_when(str_detect
+                             (string = protocolo, pattern = "^[Bb]")~ "SI")) %>% 
+  filter(BIOPSIA == "SI")
+
 
 
 ##
@@ -134,3 +139,94 @@ Base_gralPuey <- Base_gralPuey %>% mutate(CANCER = case_when(
 POSITIVOS_DESIMONE_18_22 <- Base_gralPuey %>% filter(CANCER == "SI") 
 
 
+DNI_codificados_Canreg <- read_excel("2022 - 09 - 16 DNI codificados.xlsx") %>% 
+  rename(Codigo = `Hash MD5`)
+
+
+BASE_CANREG <- read_csv("2023 - 04 - 25.csv") %>% 
+  mutate(`No Documento` = as.character(`No Documento`))
+
+
+write_excel_csv2(POSITIVOS_DESIMONE_18_22, "POSITIVOS_DESIMONE_18_22.csv")
+
+## agrego códigos
+
+POSITIVOS_con_codigos <- read_excel("POSITIVOS_DESIMONE_18_22.xlsx") %>% 
+  mutate(`No Documento` = as.character(`dni o hc`))
+
+DUPLICADOS_DESIMONE_18_22_porDNIcodificados <- POSITIVOS_con_codigos %>%  
+  semi_join(DNI_codificados_Canreg, by= "Codigo") 
+
+DUPLICADOS_DESIMONE_18_22_porDNI <- DUPLICADOS_DESIMONE_18_22_porDNIcodificados %>% 
+  arrange(`No Documento`) %>% 
+  mutate(ID = row_number()) %>% 
+  select(`No Documento`,`fecha diag`, edad,sexo, Topografía, DIAGNOSTICO,
+         AÑO, Codigo,
+         ID)
+
+write_excel_csv2(DUPLICADOS_DESIMONE_18_22_porDNI, "DUPLICADOS_DESIMONE_18_22_porDNI.csv")
+
+DUPLICADOS_DESIMONE_18_22_porcodigo <- POSITIVOS_con_codigos %>%  
+  semi_join(BASE_CANREG, by= "Codigo")  %>% 
+  arrange(`No Documento`) %>% 
+  mutate(ID = row_number()) %>% 
+  select( Codigo,`fecha diag`, edad,sexo, Topografía, DIAGNOSTICO,
+AÑO, `No Documento`,
+ID)
+
+
+write_excel_csv2(DUPLICADOS_DESIMONE_18_22_porcodigo, 
+                 "DUPLICADOS_DESIMONE_18_22_porcodigo.csv")  
+
+DUPLICADOS <- DUPLICADOS_DESIMONE_18_22_porDNI %>% 
+  bind_rows(DUPLICADOS_DESIMONE_18_22_porcodigo)
+
+UNICOS_DESIMONE_18_22 <- POSITIVOS_con_codigos %>%  
+  anti_join(DUPLICADOS, by= "No Documento") %>% 
+  arrange(Codigo) %>% 
+  mutate(ID = row_number()) %>% 
+  select(Codigo,`fecha diag`, edad,sexo, Topografía, DIAGNOSTICO,
+         AÑO, `No Documento`,
+         ID)
+
+write_excel_csv2(UNICOS_DESIMONE_18_22, "UNICOS_DESIMONE_18_22.csv")
+
+## LLAMABA LA ATENCION DE LA BASE PREVIA
+## LA CANTIDAD DE DIAGNOSTICOS IGUALES DENTRO DE UNA MISMA TOPOGRAFIA
+## POR ESO SE CHEQUEÓ MAMAS Y RIÑONES
+## LUEGO, HABLANDO CON LA DOCTORA, SE DESCUBRIO QUE LA EXPORTACION TUVO UN PROBLEMA
+## Y ES QUE SE HABIAN EXPORTADO DIAGNOSTICOS INCORRECTOR JUNTO A INFORMES DE PAP
+## ENTONCES POR ESO, EN ESTE SCRIPT , SE FILTRO PARA SOLO TENER LA INFORMACION DE LAS BIOPSIAS
+
+mamas_derechas <- POSITIVOS_DESIMONE_18_22 %>%  mutate(MAMA = case_when(
+  str_detect(string = Topografía, pattern = "MAMA DERECHA") ~ "MAMA DERECHA",
+  str_detect(string = Topografía, pattern = "MAMA IZQUIERDA") ~ "MAMA IZQUIERDA")) %>% 
+  filter(MAMA == "MAMA DERECHA")
+
+mamas_izquierdas <- POSITIVOS_DESIMONE_18_22 %>%  mutate(MAMA = case_when(
+  str_detect(string = Topografía, pattern = "MAMA DERECHA") ~ "MAMA DERECHA",
+  str_detect(string = Topografía, pattern = "MAMA IZQUIERDA") ~ "MAMA IZQUIERDA")) %>% 
+  filter(MAMA == "MAMA IZQUIERDA")
+
+
+## BUSQUEDA DE RIÑONES
+
+riñones_derechos <- POSITIVOS_DESIMONE_18_22 %>%  mutate(RIÑON = case_when(
+  str_detect(string = Topografía, pattern = "RENAL DERECHA") ~ "RIÑON DERECHO",
+  str_detect(string = Topografía, pattern = "RENAL IZQUIERDA") ~ "RIÑON IZQUIERDO")) %>% 
+  filter(RIÑON == "RIÑON DERECHO")
+
+riñones_izquierdos <- POSITIVOS_DESIMONE_18_22 %>%  mutate(RIÑON = case_when(
+  str_detect(string = Topografía, pattern = "RENAL DERECHA") ~ "RIÑON DERECHO",
+  str_detect(string = Topografía, pattern = "RENAL IZQUIERDA") ~ "RIÑON IZQUIERDO")) %>% 
+  filter(RIÑON == "RIÑON IZQUIERDO")
+
+riñones_izquierdos_descripcion_unica <- riñones_izquierdos %>% 
+  mutate(descripcion_unica =  
+           case_when(str_detect(string = Topografía,
+           pattern = "PIEZA DE TUMORECTOMIA RENAL IZQUIERDA. NA SE RECIBE LESIÓN NODULAR DE 3X2.5X2.7CM")~ "SI")) %>% 
+  filter(descripcion_unica == "SI") %>% 
+  select(protocolo, Topografía, descripcion_unica)
+
+write_excel_csv2(riñones_izquierdos_descripcion_unica, 
+                 "riñones_izquierdos_descripcion_unica.csv")
